@@ -1,4 +1,4 @@
-package com.rkapp
+package com.rajneeshkant
 
 import android.app.Application
 import com.facebook.react.PackageList
