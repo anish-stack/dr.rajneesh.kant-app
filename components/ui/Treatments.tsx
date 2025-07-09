@@ -10,7 +10,7 @@ import {
     Dimensions,
     StatusBar,
     SafeAreaView,
-    Linking,
+    
 } from "react-native"
 import { scale, verticalScale, moderateScale } from "react-native-size-matters"
 import Icon from "react-native-vector-icons/MaterialIcons"
@@ -110,18 +110,12 @@ export default function Treatments({ navigation }) {
 
 
 
-    const handleBookConsultation = () => {
-        if (navigation) {
-            navigation.navigate("BookNow")
-        }
-        console.log("Book Consultation pressed")
-    }
 
 
 
     const handleTreatmentPress = (treatment) => {
         if (navigation) {
-            navigation.navigate("TreatmentDetail", { treatment })
+            navigation.navigate("booking-now", { treatment })
         }
         console.log("Treatment pressed:", treatment.name)
     }

@@ -25,6 +25,7 @@ import Animated, {
 import { useService } from "../../hooks/use-service"
 import { useAuth } from "../../context/AuthContext"
 import { Image } from "react-native"
+import { useNavigation } from "@react-navigation/native"
 
 const { width } = Dimensions.get("window")
 
@@ -55,12 +56,12 @@ const socialLinks = [
   },
 ]
 
-export default function Header({ isShown = true, navigation }: { isShown?: boolean; navigation?: any }) {
+export default function Header({ isShown = true }: { isShown?: boolean; navigation?: any }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null)
   const { services } = useService()
   const { isAuthenticated, profileData: user } = useAuth()
-
+  const navigation = useNavigation()
   // Animated values
   const menuAnimation = useSharedValue(0)
   const dropdownAnimation = useSharedValue(0)
@@ -134,7 +135,7 @@ export default function Header({ isShown = true, navigation }: { isShown?: boole
     // Handle book now functionality
     console.log("Book Now pressed")
     if (navigation) {
-      navigation.navigate("booking")
+      navigation.navigate("booking-now")
     }
   }
 

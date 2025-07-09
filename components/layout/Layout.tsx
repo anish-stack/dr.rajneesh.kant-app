@@ -9,18 +9,20 @@ import {
 } from 'react-native';
 import Header from '../common/Header';
 import Bottom from '../common/Bottom';
+import { useRoute } from '@react-navigation/native';
 
 interface LayoutProps {
   children: ReactNode;
 }
 
 export default function Layout({ children }: LayoutProps) {
+  const router = useRoute()
   return (
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.flex}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0} // Adjust offset if needed
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0} 
       >
         <View style={styles.flex}>
           <Header />
@@ -30,7 +32,7 @@ export default function Layout({ children }: LayoutProps) {
           >
             {children}
           </ScrollView>
-          <Bottom />
+          <Bottom activeTab={router?.name} />
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -40,13 +42,13 @@ export default function Layout({ children }: LayoutProps) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#fff', // Or your preferred background color
+    backgroundColor: '#fff', 
   },
   flex: {
     flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
-    paddingBottom: 80, // Leave space for Bottom tab
+    paddingBottom: 20, 
   },
 });

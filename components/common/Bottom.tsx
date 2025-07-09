@@ -11,6 +11,7 @@ import Animated, {
   withTiming,
   interpolate,
 } from "react-native-reanimated"
+import { useNavigation } from "@react-navigation/native"
 
 const { width } = Dimensions.get("window")
 
@@ -23,7 +24,7 @@ interface TabItem {
 
 const tabs: TabItem[] = [
   {
-    id: "home",
+    id: "Home",
     label: "Home",
     icon: "home",
     route: "Home",
@@ -38,7 +39,7 @@ const tabs: TabItem[] = [
     id: "book",
     label: "Book Now",
     icon: "event",
-    route: "BookNow",
+    route: "booking-now",
   },
   {
     id: "gallery",
@@ -54,10 +55,12 @@ const tabs: TabItem[] = [
   },
 ]
 
-export default function BottomTabs({ navigation, activeTab = "home" }: { navigation?: any; activeTab?: string }) {
+export default function BottomTabs({ activeTab  }: { navigation?: any; activeTab?: string }) {
   const [currentTab, setCurrentTab] = useState(activeTab)
   const indicatorPosition = useSharedValue(0)
   const tabAnimations = tabs.map(() => useSharedValue(0))
+  const navigation = useNavigation()
+
 
   const handleTabPress = (tab: TabItem, index: number) => {
     setCurrentTab(tab.id)

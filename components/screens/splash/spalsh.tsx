@@ -1,7 +1,7 @@
-"use client"
+
 
 import React, { useEffect } from 'react'
-import { View, Text, StatusBar, Image, StyleSheet } from 'react-native'
+import { View, Text, StatusBar, StyleSheet } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import { useAuth } from '../../../context/AuthContext'
 import { scale, verticalScale, moderateScale } from 'react-native-size-matters'

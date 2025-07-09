@@ -131,7 +131,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         },
       });
       console.log("res.data", res.data)
-
+      setIsAuthenticated(true)
       setProfileData(res.data);
       await saveUserDataToStorage(res.data);
     } catch (err: any) {

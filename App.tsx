@@ -12,6 +12,10 @@ import { StatusBar } from 'react-native';
 import Login from './components/pages/login/Login';
 import Register from './components/pages/register/register';
 import OtpVerify from './components/pages/otp-verify/Otp-Verify';
+import BookingNow from './components/pages/Booking-Now/BookingNow';
+import { BookingProvider } from './context/BookingContext';
+import Profile from './components/screens/Profile/Profile';
+import Gallery from './components/screens/gallery/Gallery';
 
 const Stack = createNativeStackNavigator();
 
@@ -42,6 +46,15 @@ const RootApp = () => {
           <Stack.Screen
             options={{ headerShown: false }}
             name="verify-otp" component={OtpVerify} />
+          <Stack.Screen
+            options={{ headerShown: false }}
+            name="booking-now" component={BookingNow} />
+          <Stack.Screen
+            options={{ headerShown: false }}
+            name="Profile" component={Profile} />
+          <Stack.Screen
+            options={{ headerShown: false }}
+            name="Gallery" component={Gallery} />
         </Stack.Navigator>
       </NavigationContainer>
     </GestureHandlerRootView>
@@ -51,8 +64,12 @@ const RootApp = () => {
 const App = () => {
   return (
     <AuthProvider>
+      <BookingProvider>
       <StatusBar barStyle={'default'} />
       <RootApp />
+
+
+      </BookingProvider>
     </AuthProvider>
   );
 };
