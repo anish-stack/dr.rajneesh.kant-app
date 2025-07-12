@@ -52,6 +52,7 @@ export default function Login({ navigation }: { navigation: any }) {
   useEffect(() => {
     GoogleSignin.configure({
       webClientId: "288816992569-issuocqql1e0ssgs93ir8b2u6c9ihtdi.apps.googleusercontent.com",
+      offlineAccess: true,
     })
   }, [])
 
@@ -128,27 +129,74 @@ export default function Login({ navigation }: { navigation: any }) {
     }
     return "An unexpected error occurred. Please try again."
   }
-
   const handleGoogleAuth = async () => {
-    setGoogleLoading(true)
-    clearErrors()
+    setGoogleLoading(true);
+    clearErrors();
+
     try {
-      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true })
-      await GoogleSignin.signIn();
-      const idToken = (await GoogleSignin.getTokens()).idToken
-      if (!idToken) throw new Error("Unable to get Google authentication token")
+      console.log("Checking Play Services...");
+      try {
+        const hasServices = await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+        console.log("Play Services Available:", hasServices);
+      } catch (playServiceError) {
+        console.error("Play Services Error:", playServiceError);
+        throw new Error("Google Play Services are not available or outdated.");
+      }
 
-      const response = await axios.post(
-        `${BASE_URL}/user/verify-token-google-auth`,
-        { token: idToken },
-        { timeout: 10000 },
-      )
+      let userInfo = null;
+      try {
+        console.log("Attempting to sign in...");
+        userInfo = await GoogleSignin.signIn();
+        console.log("Signed in user info:", userInfo);
+      } catch (signInError) {
+        console.error("Sign-in Error:", signInError);
+        throw new Error("Google Sign-In failed.");
+      }
 
-      const token = response?.data?.token
-      if (!token) throw new Error("Authentication failed. Please try again.")
+      let idToken = null;
+      try {
+        const tokens = await GoogleSignin.getTokens();
+        idToken = tokens?.idToken;
+        console.log("Fetched ID Token:", idToken);
+      } catch (tokenError) {
+        console.error("Token Error:", tokenError);
+        throw new Error("Failed to get Google authentication token.");
+      }
 
-      await saveTokenToStorage(token)
-      await fetchUserDetails()
+      if (!idToken) throw new Error("Google ID Token not found.");
+
+      let response;
+      try {
+        console.log("Sending token to backend...");
+        response = await axios.post(
+          `${BASE_URL}/user/verify-token-google-auth`,
+          { token: idToken },
+          { timeout: 10000 },
+        );
+        console.log("Backend Response:", response?.data);
+      } catch (apiError) {
+        console.error("API Error:", apiError);
+        throw new Error("Failed to verify token with server.");
+      }
+
+      const token = response?.data?.token;
+      if (!token) throw new Error("Authentication failed. No token received.");
+
+      try {
+        await saveTokenToStorage(token);
+        console.log("Token saved to storage.");
+      } catch (storageError) {
+        console.error("Storage Error:", storageError);
+        throw new Error("Failed to save token locally.");
+      }
+
+      try {
+        await fetchUserDetails();
+        console.log("User details fetched.");
+      } catch (fetchError) {
+        console.error("Fetch User Details Error:", fetchError);
+      }
+
       Alert.alert(
         "Success",
         "Welcome! You've been logged in successfully.",
@@ -166,13 +214,13 @@ export default function Login({ navigation }: { navigation: any }) {
         { cancelable: false }
       );
     } catch (error: any) {
-      console.error("Google Sign-In error:", error)
-      const errorMessage = handleApiError(error)
-      setGeneralError(errorMessage)
+      console.error("Google Sign-In error:", error);
+      const errorMessage = handleApiError(error);
+      setGeneralError(errorMessage);
     } finally {
-      setGoogleLoading(false)
+      setGoogleLoading(false);
     }
-  }
+  };
 
   const handleLogin = async (): Promise<void> => {
     if (!validateForm()) return
@@ -195,6 +243,7 @@ export default function Login({ navigation }: { navigation: any }) {
       )
 
       const { success, token, case: loginCase, message } = response.data
+      console.log("response.data", response.data)
 
       if (!success) {
         throw new Error(message || "Login failed")
@@ -223,8 +272,11 @@ export default function Login({ navigation }: { navigation: any }) {
         ],
         { cancelable: false }
       );
+      setLoading(false)
     } catch (error) {
       const errorMessage = handleApiError(error)
+      console.log(error)
+      setLoading(false)
       setGeneralError(errorMessage)
     } finally {
       setLoading(false)

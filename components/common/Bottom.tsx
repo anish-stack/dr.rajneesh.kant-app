@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from "react-native"
 import { scale, verticalScale, moderateScale } from "react-native-size-matters"
 import Icon from "react-native-vector-icons/MaterialIcons"
@@ -12,6 +12,7 @@ import Animated, {
   interpolate,
 } from "react-native-reanimated"
 import { useNavigation } from "@react-navigation/native"
+import { useAuth } from "../../context/AuthContext"
 
 const { width } = Dimensions.get("window")
 
@@ -20,11 +21,12 @@ interface TabItem {
   label: string
   icon: string
   route: string
+  authRequired?: boolean
 }
 
-const tabs: TabItem[] = [
+const baseTabs: TabItem[] = [
   {
-    id: "Home",
+    id: "home",
     label: "Home",
     icon: "home",
     route: "Home",
@@ -41,26 +43,49 @@ const tabs: TabItem[] = [
     icon: "event",
     route: "booking-now",
   },
-  {
-    id: "gallery",
-    label: "Gallery",
-    icon: "photo-library",
-    route: "Gallery",
-  },
-  {
-    id: "profile",
-    label: "Profile",
-    icon: "person",
-    route: "Profile",
-  },
 ]
 
-export default function BottomTabs({ activeTab  }: { navigation?: any; activeTab?: string }) {
-  const [currentTab, setCurrentTab] = useState(activeTab)
+export default function BottomTabs({ activeTab }: { navigation?: any; activeTab?: string }) {
+  const [currentTab, setCurrentTab] = useState(activeTab || "home")
   const indicatorPosition = useSharedValue(0)
-  const tabAnimations = tabs.map(() => useSharedValue(0))
   const navigation = useNavigation()
+  const { isAuthenticated } = useAuth()
 
+  // Dynamic tabs based on authentication
+  const tabs = [
+    ...baseTabs,
+    {
+      id: isAuthenticated ? "profile" : "login",
+      label: isAuthenticated ? "Profile" : "Login",
+      icon: isAuthenticated ? "person" : "login",
+      route: isAuthenticated ? "Profile" : "Login",
+      authRequired: !isAuthenticated,
+    },
+  ]
+
+  const tabAnimations = tabs.map(() => useSharedValue(0))
+
+  // Update current tab when activeTab prop changes
+  useEffect(() => {
+    if (activeTab) {
+      setCurrentTab(activeTab)
+      const tabIndex = tabs.findIndex(tab => tab.id === activeTab)
+      if (tabIndex !== -1) {
+        indicatorPosition.value = withSpring(tabIndex, {
+          damping: 15,
+          stiffness: 150,
+        })
+      }
+    }
+  }, [activeTab, tabs])
+
+  // Initialize indicator position
+  useEffect(() => {
+    const initialIndex = tabs.findIndex(tab => tab.id === currentTab)
+    if (initialIndex !== -1) {
+      indicatorPosition.value = initialIndex
+    }
+  }, [tabs])
 
   const handleTabPress = (tab: TabItem, index: number) => {
     setCurrentTab(tab.id)
@@ -98,7 +123,11 @@ export default function BottomTabs({ activeTab  }: { navigation?: any; activeTab
     return {
       transform: [
         {
-          translateX: interpolate(indicatorPosition.value, [0, tabs.length - 1], [0, tabWidth * (tabs.length - 1)]),
+          translateX: interpolate(
+            indicatorPosition.value,
+            [0, tabs.length - 1],
+            [0, tabWidth * (tabs.length - 1)]
+          ),
         },
       ],
     }
@@ -117,18 +146,20 @@ export default function BottomTabs({ activeTab  }: { navigation?: any; activeTab
 
   return (
     <View style={styles.container}>
-      {/* Background Indicator */}
-      <Animated.View style={[styles.indicator, indicatorAnimatedStyle]} />
 
-      {/* Tab Items */}
       {tabs.map((tab, index) => {
         const isActive = currentTab === tab.id
         const isBookNow = tab.id === "book"
+        const isLogin = tab.id === "login"
 
         return (
           <TouchableOpacity
             key={tab.id}
-            style={[styles.tabItem, isBookNow && styles.bookNowTab]}
+            style={[
+              styles.tabItem,
+              isBookNow && styles.bookNowTab,
+              isLogin && styles.loginTab,
+            ]}
             onPress={() => handleTabPress(tab, index)}
             activeOpacity={0.7}
           >
@@ -141,16 +172,22 @@ export default function BottomTabs({ activeTab  }: { navigation?: any; activeTab
                   </View>
                   <Text style={styles.bookNowText}>{tab.label}</Text>
                 </View>
-              ) : (
-                <>
-                  {/* Regular tab icon */}
-                  <View style={[styles.iconContainer, isActive && styles.activeIconContainer]}>
-                    <Icon name={tab.icon} size={moderateScale(22)} color={isActive ? "#6366f1" : "#9ca3af"} />
-                    {/* Active dot indicator */}
+              ) : isLogin ? (
+                /* Special styling for Login tab */
+                <View style={styles.loginContainer}>
+                  <View style={[styles.iconContainer, isActive && styles.activeIconContainer, styles.loginIconContainer]}>
+                    <Icon name={tab.icon} size={moderateScale(22)} color={isActive ? "#ffffff" : "#9ca3af"} />
                     {isActive && <View style={styles.activeDot} />}
                   </View>
+                  <Text style={[styles.tabLabel, isActive && styles.activeLoginLabel]}>{tab.label}</Text>
+                </View>
+              ) : (
+                /* Regular tabs */
+                <>
+                  <View style={[styles.iconContainer, isActive && styles.activeIconContainer]}>
+                    <Icon name={tab.icon} size={moderateScale(22)} color={isActive ? "#2563eb" : "#9ca3af"} />
 
-                  {/* Tab label */}
+                  </View>
                   <Text style={[styles.tabLabel, isActive && styles.activeTabLabel]}>{tab.label}</Text>
                 </>
               )}
@@ -179,14 +216,14 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 10,
     position: "relative",
+    minHeight: verticalScale(70),
   },
   indicator: {
     position: "absolute",
     top: 0,
     left: 0,
-    width: width / 5,
     height: verticalScale(3),
-    backgroundColor: "#6366f1",
+    backgroundColor: "#2563eb",
     borderRadius: scale(2),
   },
   tabItem: {
@@ -194,10 +231,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: verticalScale(8),
-    paddingHorizontal: scale(4),
+    paddingHorizontal: scale(2),
+    minHeight: verticalScale(60),
   },
   bookNowTab: {
     marginTop: verticalScale(-10),
+  },
+  loginTab: {
+    marginTop: verticalScale(-5),
   },
   tabContent: {
     alignItems: "center",
@@ -209,6 +250,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: verticalScale(4),
     position: "relative",
+    minWidth: scale(32),
+    minHeight: verticalScale(32),
   },
   activeIconContainer: {
     backgroundColor: "#f0f9ff",
@@ -230,11 +273,13 @@ const styles = StyleSheet.create({
     color: "#9ca3af",
     fontWeight: "500",
     textAlign: "center",
+    marginTop: verticalScale(2),
   },
   activeTabLabel: {
-    color: "#6366f1",
+    color: "#2563eb",
     fontWeight: "600",
   },
+  // Book Now styles
   bookNowContainer: {
     alignItems: "center",
     justifyContent: "center",
@@ -243,11 +288,11 @@ const styles = StyleSheet.create({
     width: scale(50),
     height: scale(50),
     borderRadius: scale(25),
-    backgroundColor: "#6366f1",
+    backgroundColor: "#2563eb",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: verticalScale(4),
-    shadowColor: "#6366f1",
+    shadowColor: "#2563eb",
     shadowOffset: {
       width: 0,
       height: 4,
@@ -258,8 +303,25 @@ const styles = StyleSheet.create({
   },
   bookNowText: {
     fontSize: moderateScale(9),
-    color: "#6366f1",
+    color: "#2563eb",
     fontWeight: "600",
     textAlign: "center",
+  },
+  // Login tab styles
+  loginContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  loginIconContainer: {
+    backgroundColor: "#10b981",
+    borderRadius: scale(20),
+    paddingHorizontal: scale(10),
+    paddingVertical: verticalScale(6),
+    minWidth: scale(36),
+    minHeight: verticalScale(36),
+  },
+  activeLoginLabel: {
+    color: "#10b981",
+    fontWeight: "600",
   },
 })

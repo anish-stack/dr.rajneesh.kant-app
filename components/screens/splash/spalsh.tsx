@@ -57,6 +57,7 @@ export default function Splash() {
     }
   }
 
+  console.log(isAuthenticated, guest, loading)
   useEffect(() => {
     // Start animations sequence
     const startAnimations = () => {

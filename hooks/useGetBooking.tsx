@@ -3,7 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import { API_ENDPOINT, LOCAL_API_ENDPOINT } from "../constant/url";
 const BASE_URL =
-  process.env.NODE_ENV === "development" ? LOCAL_API_ENDPOINT : API_ENDPOINT;
+    process.env.NODE_ENV === "development" ? LOCAL_API_ENDPOINT : API_ENDPOINT;
 
 const TOKEN_KEY = "auth_token";
 
@@ -29,7 +29,7 @@ export const useGetBooking = () => {
                     Authorization: `Bearer ${token}`,
                 },
             });
-
+            console.log("response.data",response.data)
             if (response.data.success) {
                 setData(response.data.bookings);
             } else {

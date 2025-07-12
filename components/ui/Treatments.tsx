@@ -10,7 +10,7 @@ import {
     Dimensions,
     StatusBar,
     SafeAreaView,
-    
+
 } from "react-native"
 import { scale, verticalScale, moderateScale } from "react-native-size-matters"
 import Icon from "react-native-vector-icons/MaterialIcons"
@@ -182,7 +182,7 @@ export default function Treatments({ navigation }) {
                         </View>
 
                         <View style={styles.treatmentsGrid}>
-                            {treatmentConditions?.map((condition, index) => (
+                            {treatmentConditions?.slice(0,12).map((condition, index) => (
                                 <TouchableOpacity
                                     key={index}
                                     style={styles.treatmentCard}

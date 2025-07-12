@@ -16,10 +16,12 @@ import BookingNow from './components/pages/Booking-Now/BookingNow';
 import { BookingProvider } from './context/BookingContext';
 import Profile from './components/screens/Profile/Profile';
 import Gallery from './components/screens/gallery/Gallery';
+import Treatments from './components/ui/Treatments';
 
 const Stack = createNativeStackNavigator();
 
 const RootApp = () => {
+  
 
 
 
@@ -55,6 +57,9 @@ const RootApp = () => {
           <Stack.Screen
             options={{ headerShown: false }}
             name="Gallery" component={Gallery} />
+          <Stack.Screen
+            options={{ headerShown: false }}
+            name="Treatments" component={Treatments} />
         </Stack.Navigator>
       </NavigationContainer>
     </GestureHandlerRootView>

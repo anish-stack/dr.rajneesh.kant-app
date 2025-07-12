@@ -69,7 +69,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const tokenDataString = await AsyncStorage.getItem(TOKEN_KEY);
       if (!tokenDataString) return null;
       const parsed = JSON.parse(tokenDataString);
-      console.log("parsed",parsed)
+      console.log("parsed", parsed)
       return parsed.token || null;
     } catch (err) {
       console.error('Error parsing token from storage:', err);
@@ -105,7 +105,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsAuthenticated(false);
       setProfileData(null);
       setGuest(false);
-      console.log("logout")
+
       return true
     } catch (err) {
       console.error('Logout error:', err);
@@ -113,16 +113,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const fetchUserDetails = useCallback(async (): Promise<void> => {
+    console.log("🔄 Fetching user details...");
+
     const newToken = await getTokenFromStorage(); // ✅ await here
+    console.log("🪪 Retrieved token from storage:", newToken);
 
-    console.log("newToken from storage →", newToken);
-
-    if (!newToken) return;
+    if (!newToken) {
+      console.warn("⚠️ No token found in storage.");
+      return;
+    }
 
     try {
       setLoading(true);
       setError(null);
+
       const BASE_URL = process.env.NODE_ENV === 'development' ? LOCAL_API_ENDPOINT : API_ENDPOINT;
+      console.log("🌐 API Base URL:", BASE_URL);
 
       const res = await axios.get<ProfileData>(`${BASE_URL}/user/profile`, {
         headers: {
@@ -130,21 +136,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           'Content-Type': 'application/json',
         },
       });
-      console.log("res.data", res.data)
-      setIsAuthenticated(true)
+
+      console.log("✅ Profile fetched successfully:", res.data);
+
+      setIsAuthenticated(true);
       setProfileData(res.data);
+
+      console.log("💾 Saving user data to storage...");
       await saveUserDataToStorage(res.data);
+
     } catch (err: any) {
-      console.error('Fetch profile error:', err);
-      setError(err.response?.data?.message || 'Failed to fetch user profile');
+      console.error('❌ Fetch profile error:', err);
+
+      const errorMsg = err.response?.data?.message || 'Failed to fetch user profile';
+      setError(errorMsg);
+      console.warn("⚠️ Error Message:", errorMsg);
 
       if (err.response?.status === 401) {
+        console.warn("🔒 Unauthorized. Logging out...");
         await logout();
       }
     } finally {
       setLoading(false);
+      console.log("✅ Done fetching user details.");
     }
-  }, [token]);
+  }, []);
+
 
   const setGuestMode = (isGuest: boolean): void => {
     setGuest(isGuest);
@@ -166,6 +183,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           const cachedUser = await getUserDataFromStorage();
           if (cachedUser) setProfileData(cachedUser);
         }
+        setLoading(false);
       } catch (err) {
         console.error('Auth initialization error:', err);
         setError('Failed to initialize authentication');

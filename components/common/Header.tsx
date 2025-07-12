@@ -217,7 +217,7 @@ export default function Header({ isShown = true }: { isShown?: boolean; navigati
                 {user?.data?.profileImage?.url ? (
                   <Image source={{ uri: user?.data?.profileImage?.url }} style={styles.userImage} resizeMode="cover" />
                 ) : (
-                  <Icon name="person" size={moderateScale(24)} color="#6366f1" />
+                  <Icon name="person" size={moderateScale(24)} color="#2563eb" />
                 )}
               </View>
               <View style={styles.userInfo}>
@@ -275,7 +275,7 @@ export default function Header({ isShown = true }: { isShown?: boolean; navigati
           <View style={styles.quickActionsSection}>
             <Text style={styles.sectionTitle}>Quick Actions</Text>
             <TouchableOpacity style={styles.quickActionItem} onPress={handleBookNow}>
-              <Icon name="event" size={moderateScale(18)} color="#6366f1" />
+              <Icon name="event" size={moderateScale(18)} color="#2563eb" />
               <Text style={styles.quickActionText}>Book Appointment</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.quickActionItem} onPress={() => handleNavigation("/emergency")}>
@@ -367,11 +367,11 @@ const styles = StyleSheet.create({
   bookButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#6366f1",
+    backgroundColor: "#2563eb",
     paddingHorizontal: scale(12),
     paddingVertical: verticalScale(8),
     borderRadius: scale(20),
-    shadowColor: "#6366f1",
+    shadowColor: "#2563eb",
     shadowOffset: {
       width: 0,
       height: 2,

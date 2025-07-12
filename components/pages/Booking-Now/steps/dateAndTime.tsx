@@ -1,11 +1,11 @@
 "use client"
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from "react-native"
-import { useState, useCallback, useEffect } from "react"
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ToastAndroid } from "react-native"
+import { useState, useCallback, useEffect, useRef } from "react"
 import { scale, verticalScale, moderateScale } from "react-native-size-matters"
 import Icon from "react-native-vector-icons/MaterialIcons"
 import { Calendar, type DateData } from "react-native-calendars"
 import DateTimePicker from "@react-native-community/datetimepicker"
-import { format, parseISO, isAfter, isToday } from "date-fns"
+import { format, parseISO, isAfter, isToday, startOfDay } from "date-fns"
 import { useBooking } from "../../../../context/BookingContext"
 
 interface TimeSlot {
@@ -21,43 +21,54 @@ interface AvailableDate {
 
 export default function DateAndTime() {
   const { state, dispatch } = useBooking()
+  const scrollViewRef = useRef<ScrollView>(null)
   const [availableDates, setAvailableDates] = useState<AvailableDate[]>([])
   const [isLoadingSlots, setIsLoadingSlots] = useState(false)
   const [bookingWindow, setBookingWindow] = useState<{ start_date: string; end_date: string } | null>(null)
   const [showTimePicker, setShowTimePicker] = useState(false)
   const [selectedTime, setSelectedTime] = useState(new Date())
+  const [hasSelectedBoth, setHasSelectedBoth] = useState(false)
+  const [isTimeChange, setIsTimeChange] = useState(false)
+
+  // Show Android Toast
+  const showToast = (message: string) => {
+    ToastAndroid.show(message, ToastAndroid.SHORT)
+  }
+
+  // Get today's date for minimum date restriction
+  const getTodayDate = () => {
+    return format(new Date(), "yyyy-MM-dd")
+  }
 
   // Fetch available dates
   const fetchAvailableDates = useCallback(
     async (clinicId: string) => {
       if (!clinicId) return
       setIsLoadingSlots(true)
-
       try {
         const response = await fetch(`https://drkm.api.adsdigitalmedia.com/api/v1/get-available-date?_id=${clinicId}`)
         const result = await response.json()
-
+        
         if (result.availableDates) {
           setAvailableDates(result.availableDates)
         }
-
+        
         if (result.BookingAvailableAt) {
           setBookingWindow(result.BookingAvailableAt)
-
           // Auto-select best available date
           const today = new Date()
           const startDate = parseISO(result.BookingAvailableAt.start_date)
-
           let bestDate = null
+          
           if (isAfter(today, startDate) || isToday(startDate)) {
             bestDate = today
           } else {
             bestDate = startDate
           }
-
+          
           const bestDateStr = format(bestDate, "yyyy-MM-dd")
           const dateWithSlots = result.availableDates?.find((d: AvailableDate) => d.date === bestDateStr)
-
+          
           if (dateWithSlots && dateWithSlots.slots?.some((slot) => slot.status === "Available")) {
             dispatch({ type: "SET_DATE", payload: bestDateStr })
           } else {
@@ -65,7 +76,6 @@ export default function DateAndTime() {
               const dateObj = parseISO(d.date)
               return isAfter(dateObj, today) && d.slots?.some((slot) => slot.status === "Available")
             })
-
             if (nextAvailableDate) {
               dispatch({ type: "SET_DATE", payload: nextAvailableDate.date })
             }
@@ -73,7 +83,7 @@ export default function DateAndTime() {
         }
       } catch (error) {
         console.error("Error fetching available dates:", error)
-        Alert.alert("Error", "Failed to load available dates")
+        showToast("Failed to load available dates")
       } finally {
         setIsLoadingSlots(false)
       }
@@ -88,13 +98,25 @@ export default function DateAndTime() {
     }
   }, [state.selectedClinic, fetchAvailableDates])
 
+  // Auto-scroll to bottom when both date and time are selected
+  useEffect(() => {
+    if (state.selectedDate && state.selectedTime && !isTimeChange) {
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true })
+        setHasSelectedBoth(true)
+      }, 300)
+    }
+  }, [state.selectedDate, state.selectedTime, isTimeChange])
+
   // Create marked dates for calendar
   const getMarkedDates = () => {
     const marked: any = {}
-
+    const today = getTodayDate()
+    
     // Mark available dates
     availableDates.forEach((dateData) => {
-      if (dateData.slots?.some((slot) => slot.status === "Available")) {
+      // Only mark dates that are today or in the future
+      if (dateData.date >= today && dateData.slots?.some((slot) => slot.status === "Available")) {
         marked[dateData.date] = {
           marked: true,
           dotColor: "#10b981",
@@ -114,7 +136,6 @@ export default function DateAndTime() {
     }
 
     // Mark today
-    const today = format(new Date(), "yyyy-MM-dd")
     if (marked[today]) {
       marked[today] = {
         ...marked[today],
@@ -128,19 +149,36 @@ export default function DateAndTime() {
   // Handle date selection
   const handleDateSelect = (day: DateData) => {
     const selectedDate = day.dateString
+    const today = getTodayDate()
+    
+    // Check if selected date is in the past
+    if (selectedDate < today) {
+      showToast("Cannot select past dates")
+      return
+    }
+    
     const dateData = availableDates.find((d) => d.date === selectedDate)
-
     if (dateData && dateData.slots?.some((slot) => slot.status === "Available")) {
       dispatch({ type: "SET_DATE", payload: selectedDate })
       dispatch({ type: "SET_TIME", payload: "" }) // Reset time selection
+      setIsTimeChange(false)
+      setHasSelectedBoth(false)
     } else {
-      Alert.alert("Unavailable", "This date is not available for booking")
+      showToast("This date is not available for booking")
     }
   }
 
   // Handle time selection
   const handleTimeSelect = (time: string) => {
+    const wasTimeAlreadySelected = !!state.selectedTime
+    setIsTimeChange(wasTimeAlreadySelected)
+    
     dispatch({ type: "SET_TIME", payload: time })
+    
+    if (wasTimeAlreadySelected) {
+      // If changing time, show toast and don't scroll
+      showToast("Time updated")
+    }
   }
 
   // Handle time picker
@@ -149,7 +187,14 @@ export default function DateAndTime() {
     if (selectedTime) {
       setSelectedTime(selectedTime)
       const timeString = format(selectedTime, "HH:mm")
+      const wasTimeAlreadySelected = !!state.selectedTime
+      setIsTimeChange(wasTimeAlreadySelected)
+      
       dispatch({ type: "SET_TIME", payload: timeString })
+      
+      if (wasTimeAlreadySelected) {
+        showToast("Custom time updated")
+      }
     }
   }
 
@@ -157,7 +202,12 @@ export default function DateAndTime() {
 
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        ref={scrollViewRef}
+        style={styles.scrollView} 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: verticalScale(20) }}
+      >
         {/* Date Selection */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -175,7 +225,7 @@ export default function DateAndTime() {
             <Calendar
               onDayPress={handleDateSelect}
               markedDates={getMarkedDates()}
-              minDate={bookingWindow?.start_date}
+              minDate={getTodayDate()} // Disable past dates
               maxDate={bookingWindow?.end_date}
               theme={{
                 backgroundColor: "#ffffff",
@@ -243,44 +293,39 @@ export default function DateAndTime() {
                   <Text style={styles.loadingText}>Loading time slots...</Text>
                 </View>
               ) : (
-                <>
-                  {/* Predefined Time Slots */}
-                  <View style={styles.slotsGrid}>
-                    {selectedDateData.slots
-                      .filter((slot) => slot.status === "Available")
-                      .map((slot, index) => (
-                        <TouchableOpacity
-                          key={slot.time}
-                          style={[styles.timeSlot, state.selectedTime === slot.time && styles.selectedTimeSlot]}
-                          onPress={() => handleTimeSelect(slot.time)}
+                <View style={styles.slotsGrid}>
+                  {selectedDateData.slots
+                    .filter((slot) => slot.status === "Available")
+                    .map((slot, index) => (
+                      <TouchableOpacity
+                        key={slot.time}
+                        style={[styles.timeSlot, state.selectedTime === slot.time && styles.selectedTimeSlot]}
+                        onPress={() => handleTimeSelect(slot.time)}
+                      >
+                        <Text
+                          style={[
+                            styles.timeSlotText,
+                            state.selectedTime === slot.time && styles.selectedTimeSlotText,
+                          ]}
                         >
-                          <Text
-                            style={[
-                              styles.timeSlotText,
-                              state.selectedTime === slot.time && styles.selectedTimeSlotText,
-                            ]}
-                          >
-                            {slot.time}
-                          </Text>
-                          <Text
-                            style={[
-                              styles.timeSlotSubtext,
-                              state.selectedTime === slot.time && styles.selectedTimeSlotSubtext,
-                            ]}
-                          >
-                            {slot.available > 0 ? `${slot.available} slots` : "Available"}
-                          </Text>
-                          {state.selectedTime === slot.time && (
-                            <View style={styles.checkIcon}>
-                              <Icon name="check" size={moderateScale(12)} color="#ffffff" />
-                            </View>
-                          )}
-                        </TouchableOpacity>
-                      ))}
-                  </View>
-
-         
-                </>
+                          {slot.time}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.timeSlotSubtext,
+                            state.selectedTime === slot.time && styles.selectedTimeSlotSubtext,
+                          ]}
+                        >
+                          {slot.available > 0 ? `${slot.available} slots` : "Available"}
+                        </Text>
+                        {state.selectedTime === slot.time && (
+                          <View style={styles.checkIcon}>
+                            <Icon name="check" size={moderateScale(12)} color="#ffffff" />
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                </View>
               )}
             </View>
           ) : (
@@ -291,32 +336,7 @@ export default function DateAndTime() {
           )}
         </View>
 
-        {/* Summary */}
-        {state.selectedDate && state.selectedTime && (
-          <View style={styles.summarySection}>
-            <View style={styles.summaryHeader}>
-              <Icon name="event-note" size={moderateScale(20)} color="#10b981" />
-              <Text style={styles.summaryTitle}>Appointment Summary</Text>
-            </View>
-
-            <View style={styles.summaryContent}>
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Date:</Text>
-                <Text style={styles.summaryValue}>{format(parseISO(state.selectedDate), "EEE, MMM d, yyyy")}</Text>
-              </View>
-
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Time:</Text>
-                <Text style={styles.summaryValue}>{state.selectedTime}</Text>
-              </View>
-
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Clinic:</Text>
-                <Text style={styles.summaryValue}>{state.selectedClinic?.clinic_name || "Selected Clinic"}</Text>
-              </View>
-            </View>
-          </View>
-        )}
+   
       </ScrollView>
 
       {/* Time Picker Modal */}
@@ -469,33 +489,6 @@ const styles = StyleSheet.create({
     borderRadius: scale(8),
     alignItems: "center",
     justifyContent: "center",
-  },
-  customTimeSection: {
-    borderTopWidth: 1,
-    borderTopColor: "#e5e7eb",
-    paddingTop: verticalScale(16),
-  },
-  customTimeTitle: {
-    fontSize: moderateScale(14),
-    fontWeight: "600",
-    color: "#374151",
-    marginBottom: verticalScale(8),
-  },
-  customTimeButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: verticalScale(12),
-    paddingHorizontal: scale(16),
-    borderWidth: 2,
-    borderColor: "#e5e7eb",
-    borderRadius: scale(12),
-    backgroundColor: "#ffffff",
-  },
-  customTimeButtonText: {
-    fontSize: moderateScale(14),
-    color: "#6366f1",
-    fontWeight: "500",
-    marginLeft: scale(8),
   },
   emptyTimeSlots: {
     paddingVertical: verticalScale(32),
